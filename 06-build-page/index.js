@@ -152,7 +152,7 @@ function copyDir() {
 			fs.rm(dirPathCopyFolder, { force: true, recursive: true }, function(err) {
 				if (err) throw err;
 			});
-
+			
 			setTimeout(() => {
 				function copyFolder(from = dirPathFolder, to = dirPathCopyFolder) {
 				
