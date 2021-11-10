@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const fsp = require('fs/promises');
 const htmlPath = path.join(__dirname, 'template.html');
 const componentsPath = path.join(__dirname, 'components');
 const dirBuildPath = path.join(__dirname, 'project-dist');
@@ -40,25 +41,21 @@ new Promise((res, rej) => { res();
   });
 }).then((onlyFile) => {
 	return new Promise((res, rej) => {
-		fs.readFile(path.join(__dirname, 'project-dist', 'index.html'), (err, data) => {
-			if(err) throw err;
+		async function replaceHtml() {
+			try {
+			let buildHtml = await fsp.readFile(path.join(__dirname, 'project-dist', 'index.html'));
 			for (const html in onlyFile) {
 				let sourceFile = path.join(__dirname, 'components', `${onlyFile[html]}`);
 				let re = new RegExp('{{' + html + '}}','g');
-				fs.readFile(sourceFile, (err, htmlReplace) => {
-					if(err) throw err;
-					data = data.toString().replace(re, htmlReplace);
-
-					setTimeout(() => {
-						fs.writeFile(dist, data, (err) => {
-							if(err) throw err;
-						});
-					}, 10);
-					
-				});
+				let readingSample = await fsp.readFile(sourceFile)
+				buildHtml = buildHtml.toString().replace(re, readingSample);
 			};
-			res();
-		});
+			fsp.writeFile(dist, buildHtml);
+			} catch(error) {
+				console.error(error.message);
+			}
+		}
+		replaceHtml();
   });
 });
 
@@ -116,76 +113,37 @@ fs.readdir(dirPathCss, { withFileTypes: true }, function(err, items) {
 const dirPathFolder = path.join(__dirname, 'assets');
 const dirPathCopyFolder = path.join(__dirname, 'project-dist', 'assets');
 
+async function copyFolder(from = dirPathFolder, to = dirPathCopyFolder) {
+	try {
+    await fsp.mkdir(to,  { recursive: true });
+		const items = await fsp.readdir(from, { withFileTypes: true });
+		for (const file of items) {
+			if(file.isFile()) {
+				let pathToFile = path.basename(file.name);
+				let sourceFile = path.join(from, `${pathToFile}`);
+				let copy = path.join(to, `${pathToFile}`);
+				fsp.copyFile(sourceFile, copy);
+			} else {
+				copyFolder(path.join(from, file.name), path.join(to, file.name));
+			}
+		}
+  } catch(error) {
+    console.error(error.message);
+  }
+};
+
 function copyDir() {
 	fs.stat(dirPathCopyFolder, function(err) {
 		if (err) {
-			function copyFolder(from = dirPathFolder, to = dirPathCopyFolder) {
-				
-				fs.mkdir(to,  { recursive: true }, err => {
-					if (err) throw err;
-				});
-
-				fs.readdir(from, { withFileTypes: true }, function(err, items) {
-					for (const file of items) {
-						if(file.isFile()) {
-							let pathToFile = path.basename(file.name);
-							
-							let sourceFile = path.join(from, `${pathToFile}`);
-							let copy = path.join(to, `${pathToFile}`);
-							fs.copyFile(sourceFile, copy,  (err) => {
-								if (err) {
-									console.log("Error Found:", err);
-								}
-							});
-						} else {
-							copyFolder(path.join(from, file.name), path.join(to, file.name));
-						}
-					}
-					if (err) throw err;
-				});
-
-			};
 			copyFolder();
 			console.log('Копирование файлов выполнено!')
 		} else {
-
-			fs.rm(dirPathCopyFolder, { force: true, recursive: true }, function(err) {
-				if (err) throw err;
-			});
-			
-			setTimeout(() => {
-				function copyFolder(from = dirPathFolder, to = dirPathCopyFolder) {
-				
-					fs.mkdir(to,  { recursive: true }, err => {
-						if (err) throw err;
-					});
-	
-					fs.readdir(from, { withFileTypes: true }, function(err, items) {
-						for (const file of items) {
-							if(file.isFile()) {
-								let pathToFile = path.basename(file.name);
-								
-								let sourceFile = path.join(from, `${pathToFile}`);
-								let copy = path.join(to, `${pathToFile}`);
-								fs.copyFile(sourceFile, copy,  (err) => {
-									if (err) {
-										console.log("Error Found:", err);
-									}
-								});
-							} else {
-								copyFolder(path.join(from, file.name), path.join(to, file.name));
-							}
-						}
-						if (err) throw err;
-					});
-
-				};
-				copyFolder();
-				console.log('Копирование файлов выполнено!')
-			}, 30);
-	
+			(async () => {
+				await fsp.rm(dirPathCopyFolder, { force: true, recursive: true });
+					copyFolder();
+					console.log('Копирование файлов выполнено!')	
+			})();
 		};
-		
 	});
 };
 copyDir();
