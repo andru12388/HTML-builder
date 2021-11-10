@@ -133,16 +133,14 @@ async function copyFolder(from = dirPathFolder, to = dirPathCopyFolder) {
 };
 
 function copyDir() {
-	fs.stat(dirPathCopyFolder, function(err) {
+	fs.stat(dirPathCopyFolder, async function(err) {
 		if (err) {
 			copyFolder();
 			console.log('Копирование файлов выполнено!')
 		} else {
-			(async () => {
-				await fsp.rm(dirPathCopyFolder, { force: true, recursive: true });
-					copyFolder();
-					console.log('Копирование файлов выполнено!')	
-			})();
+			await fsp.rm(dirPathCopyFolder, { force: true, recursive: true });
+			copyFolder();
+			console.log('Копирование файлов выполнено!')	
 		};
 	});
 };
